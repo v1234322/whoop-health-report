@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -16,15 +16,19 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install
         run: |
-          pip install requests openai
+          pip install requests
 
-      - name: Run WHOOP Coach
+      - name: Run WHOOP Report
         env:
           WHOOP_ACCESS_TOKEN: ${{ secrets.WHOOP_ACCESS_TOKEN }}
-          WHOOP_REFRESH_TOKEN: ${{ secrets.WHOOP_REFRESH_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
         run: |
           python whoop_report.py
+
+      - name: Save Report
+        run: |
+          git add WHOOP_Report.md
+          git commit -m "Update WHOOP report" || true
+          git push
