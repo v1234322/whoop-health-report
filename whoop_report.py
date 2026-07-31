@@ -1,6 +1,7 @@
 import os
 import requests
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
 
 
 TOKEN = os.environ["WHOOP_ACCESS_TOKEN"]
@@ -10,66 +11,122 @@ headers = {
 }
 
 
-def get_whoop(url):
-    response = requests.get(url, headers=headers)
+HISTORY_FILE = "whoop_history.json"
 
-    if response.status_code != 200:
+
+def get_whoop(url):
+
+    r = requests.get(url, headers=headers)
+
+    if r.status_code != 200:
         return {}
 
-    return response.json()
+    return r.json()
 
 
-def get_score(data):
+
+def extract_score(data):
+
     try:
         return data["records"][0]["score"]
     except:
         return {}
 
 
-def analyze(recovery, sleep, cycle):
 
-    advice = []
+def load_history():
 
-    # Recovery
-    recovery_score = recovery.get("score", {}).get("recovery_score")
+    if os.path.exists(HISTORY_FILE):
+        with open(
+            HISTORY_FILE,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            return json.load(f)
 
-    if recovery_score:
-        if recovery_score >= 70:
-            status = "🟢 身体状态良好，适合训练"
-            advice.append("今天可以进行力量训练或中高强度训练。")
-        elif recovery_score >= 40:
-            status = "🟡 身体状态一般，建议控制强度"
-            advice.append("建议进行中等强度训练或 Zone 2 有氧。")
-        else:
-            status = "🔴 身体需要恢复"
-            advice.append("建议休息、散步、拉伸，避免高强度训练。")
+    return []
+
+
+
+def save_history(history):
+
+    with open(
+        HISTORY_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+        json.dump(
+            history[-7:],
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
+
+
+def trend_analysis(history):
+
+    if len(history) < 2:
+        return "数据不足，需要继续收集。"
+
+
+    recovery = []
+    strain = []
+    hrv = []
+    sleep = []
+
+
+    for day in history:
+
+        recovery.append(
+            day.get("recovery",0)
+        )
+
+        strain.append(
+            day.get("strain",0)
+        )
+
+        hrv.append(
+            day.get("hrv",0)
+        )
+
+        sleep.append(
+            day.get("sleep",0)
+        )
+
+
+    avg_recovery = sum(recovery)/len(recovery)
+    avg_strain = sum(strain)/len(strain)
+    avg_sleep = sum(sleep)/len(sleep)
+
+
+    result = f"""
+
+过去7天趋势：
+
+恢复平均：
+{avg_recovery:.1f}
+
+睡眠平均：
+{avg_sleep:.1f}
+
+训练负荷平均：
+{avg_strain:.1f}
+
+"""
+
+
+    if avg_recovery >= 70:
+        result += "\n🟢 最近恢复状态良好"
+
+    elif avg_recovery <40:
+        result += "\n🔴 最近恢复不足，需要增加休息"
+
     else:
-        status = "⚪ 暂无恢复评分"
+        result += "\n🟡 恢复状态稳定"
 
 
-    # Sleep
-    sleep_score = sleep.get("score", {}).get("sleep_performance_percentage")
-
-    if sleep_score:
-        if sleep_score < 70:
-            advice.append("睡眠不足，今晚建议提前30-60分钟睡觉。")
-        else:
-            advice.append("睡眠表现不错，继续保持规律作息。")
-
-
-    # Strain
-    strain = cycle.get("score", {}).get("strain")
-
-    if strain:
-        if strain > 16:
-            advice.append("昨日负荷较高，今天注意恢复。")
-        elif strain < 8:
-            advice.append("昨日活动较少，可以适当增加运动。")
-        else:
-            advice.append("昨日活动量适中。")
-
-
-    return status, advice
+    return result
 
 
 
@@ -91,16 +148,65 @@ def main():
     )
 
 
-    recovery = get_score(recovery_data)
-    sleep = get_score(sleep_data)
-    cycle = get_score(cycle_data)
-
-
-    status, advice = analyze(
-        recovery,
-        sleep,
-        cycle
+    recovery_score = extract_score(
+        recovery_data
     )
+
+    sleep_score = extract_score(
+        sleep_data
+    )
+
+    cycle_score = extract_score(
+        cycle_data
+    )
+
+
+    recovery = recovery_score.get(
+        "recovery_score",
+        0
+    )
+
+    hrv = recovery_score.get(
+        "hrv_rmssd_milli",
+        0
+    )
+
+
+    sleep = sleep_score.get(
+        "sleep_performance_percentage",
+        0
+    )
+
+
+    strain = cycle_score.get(
+        "strain",
+        0
+    )
+
+
+    history = load_history()
+
+
+    history.append({
+
+        "date": today,
+
+        "recovery": recovery,
+
+        "sleep": sleep,
+
+        "strain": strain,
+
+        "hrv": hrv
+
+    })
+
+
+    save_history(history)
+
+
+    trend = trend_analysis(history)
+
 
 
     report = f"""
@@ -109,50 +215,52 @@ def main():
 日期：
 {today}
 
----
 
-## 今日状态
+## 今日数据
 
-{status}
-
----
-
-## 身体数据
-
-### Recovery
+Recovery:
 {recovery}
 
-### Sleep
+HRV:
+{hrv}
+
+Sleep:
 {sleep}
 
-### Strain
-{cycle}
+Strain:
+{strain}
+
 
 ---
 
-## 今日建议
+# 📈 最近7天趋势
+
+{trend}
+
+
+---
+
+# 今日建议
 
 """
 
-    for item in advice:
-        report += f"- {item}\n"
+    if recovery >=70:
+        report += """
+✅ 可以安排训练
+✅ 适合力量训练或高质量运动
+"""
 
+    elif recovery <40:
+        report += """
+⚠️ 优先恢复
+⚠️ 降低训练强度
+"""
 
-    report += """
-
----
-
-## 健康习惯建议
-
-✅ 保持充足饮水  
-✅ 早餐补充蛋白质  
-✅ 下午减少咖啡因  
-✅ 保持固定睡眠时间
-
----
-
-自动生成：
-""" + str(datetime.now())
+    else:
+        report += """
+🟡 保持中等训练
+🟡 注意睡眠
+"""
 
 
     with open(
@@ -167,5 +275,5 @@ def main():
 
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()
