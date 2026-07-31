@@ -29,6 +29,9 @@ jobs:
 
       - name: Save Report
         run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
           git add WHOOP_Report.md
           git commit -m "Update WHOOP report" || true
           git push
