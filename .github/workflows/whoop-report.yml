@@ -7,14 +7,14 @@ on:
     - cron: '30 0 * * 1-5'
   workflow_dispatch:
   
-  jobs:
-    report:
-      runs-on: ubuntu-latest
+jobs:
+  report:
+    runs-on: ubuntu-latest
       
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-        - name: Test workflow
-          run: |
-            echo "WHOOP Daily Report"
-            date
+    steps:
+       - name: Checkout
+         uses: actions/checkout@v4
+       - name: Test workflow
+         run: |
+           echo "WHOOP Daily Report"
+           date
