@@ -35,6 +35,6 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          git add WHOOP_Report.md
-          git commit -m "Update WHOOP report" || true
+          git add WHOOP_Report.md whoop_history.json
+          git commit -m "Update WHOOP trend report" || true
           git push
