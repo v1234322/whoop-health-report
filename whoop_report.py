@@ -2,65 +2,79 @@ import os
 import requests
 import json
 from datetime import datetime
+from openai import OpenAI
 
 
-WHOOP_ACCESS_TOKEN = os.environ.get("WHOOP_ACCESS_TOKEN")
+WHOOP_TOKEN = os.environ["WHOOP_ACCESS_TOKEN"]
+OPENAI_KEY = os.environ["OPENAI_API_KEY"]
 
-if not WHOOP_ACCESS_TOKEN:
-    raise Exception("没有找到 WHOOP_ACCESS_TOKEN")
-
+client = OpenAI(api_key=OPENAI_KEY)
 
 headers = {
-    "Authorization": f"Bearer {WHOOP_ACCESS_TOKEN}",
-    "Content-Type": "application/json"
+    "Authorization": f"Bearer {WHOOP_TOKEN}"
 }
 
 
-def get_data(name, url):
-    response = requests.get(url, headers=headers)
-
-    print("\n==========")
-    print(name)
-    print("状态码:", response.status_code)
-
-    if response.status_code != 200:
-        print(response.text)
-        return None
-
-    return response.json()
+def get_whoop(url):
+    r = requests.get(url, headers=headers)
+    return r.json()
 
 
 def main():
 
-    print("WHOOP Daily Report")
-    print(datetime.now())
-
-    recovery = get_data(
-        "Recovery",
+    recovery = get_whoop(
         "https://api.prod.whoop.com/developer/v2/recovery"
     )
 
-    sleep = get_data(
-        "Sleep",
+    sleep = get_whoop(
         "https://api.prod.whoop.com/developer/v2/activity/sleep"
     )
 
-    cycle = get_data(
-        "Cycle",
+    cycle = get_whoop(
         "https://api.prod.whoop.com/developer/v2/cycle"
     )
 
 
-    report = {
-        "time": str(datetime.now()),
+    data = {
         "recovery": recovery,
         "sleep": sleep,
         "cycle": cycle
     }
 
 
-    print("\n===== WHOOP DATA =====")
-    print(json.dumps(report, indent=2))
+    prompt = f"""
+你是WHOOP健康教练。
+
+根据以下数据生成今天健康报告：
+
+{json.dumps(data)}
+
+输出：
+1. 今日恢复评分分析
+2. 睡眠分析
+3. 训练建议
+4. 饮食建议
+5. 晚间恢复建议
+
+用中文回答。
+"""
+
+
+    response = client.chat.completions.create(
+        model="gpt-5-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+
+    report = response.choices[0].message.content
+
+    print("===== WHOOP 今日健康报告 =====")
+    print(report)
 
 
 if __name__ == "__main__":
