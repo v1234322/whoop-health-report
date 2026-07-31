@@ -1,26 +1,30 @@
 import os
 import requests
-import json
 from datetime import datetime
-from openai import OpenAI
 
 
-WHOOP_TOKEN = os.environ["WHOOP_ACCESS_TOKEN"]
-OPENAI_KEY = os.environ["OPENAI_API_KEY"]
-
-client = OpenAI(api_key=OPENAI_KEY)
+TOKEN = os.environ["WHOOP_ACCESS_TOKEN"]
 
 headers = {
-    "Authorization": f"Bearer {WHOOP_TOKEN}"
+    "Authorization": f"Bearer {TOKEN}"
 }
 
 
 def get_whoop(url):
     r = requests.get(url, headers=headers)
+
+    if r.status_code != 200:
+        return {
+            "error": r.text,
+            "status": r.status_code
+        }
+
     return r.json()
 
 
 def main():
+
+    today = datetime.now().strftime("%Y-%m-%d")
 
     recovery = get_whoop(
         "https://api.prod.whoop.com/developer/v2/recovery"
@@ -35,45 +39,53 @@ def main():
     )
 
 
-    data = {
-        "recovery": recovery,
-        "sleep": sleep,
-        "cycle": cycle
-    }
+    report = f"""
+# WHOOP 今日健康报告
 
+日期：{today}
 
-    prompt = f"""
-你是WHOOP健康教练。
+---
 
-根据以下数据生成今天健康报告：
+## 恢复 Recovery
 
-{json.dumps(data)}
+{recovery}
 
-输出：
-1. 今日恢复评分分析
-2. 睡眠分析
-3. 训练建议
-4. 饮食建议
-5. 晚间恢复建议
+---
 
-用中文回答。
+## 睡眠 Sleep
+
+{sleep}
+
+---
+
+## 活动负荷 Strain
+
+{cycle}
+
+---
+
+## 今日建议
+
+根据 WHOOP 数据：
+
+- 如果恢复较高：
+  可以进行正常训练。
+
+- 如果恢复偏低：
+  建议降低训练强度，加强睡眠和恢复。
+
+- 保持规律睡眠和补充水分。
+
+---
+自动生成时间：
+{datetime.now()}
 """
 
 
-    response = client.chat.completions.create(
-        model="gpt-5-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+    with open("WHOOP_Report.md", "w", encoding="utf-8") as f:
+        f.write(report)
 
 
-    report = response.choices[0].message.content
-
-    print("===== WHOOP 今日健康报告 =====")
     print(report)
 
 
