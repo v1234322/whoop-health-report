@@ -11,82 +11,160 @@ headers = {
 
 
 def get_whoop(url):
-    r = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
 
-    if r.status_code != 200:
-        return {
-            "error": r.text,
-            "status": r.status_code
-        }
+    if response.status_code != 200:
+        return {}
 
-    return r.json()
+    return response.json()
+
+
+def get_score(data):
+    try:
+        return data["records"][0]["score"]
+    except:
+        return {}
+
+
+def analyze(recovery, sleep, cycle):
+
+    advice = []
+
+    # Recovery
+    recovery_score = recovery.get("score", {}).get("recovery_score")
+
+    if recovery_score:
+        if recovery_score >= 70:
+            status = "🟢 身体状态良好，适合训练"
+            advice.append("今天可以进行力量训练或中高强度训练。")
+        elif recovery_score >= 40:
+            status = "🟡 身体状态一般，建议控制强度"
+            advice.append("建议进行中等强度训练或 Zone 2 有氧。")
+        else:
+            status = "🔴 身体需要恢复"
+            advice.append("建议休息、散步、拉伸，避免高强度训练。")
+    else:
+        status = "⚪ 暂无恢复评分"
+
+
+    # Sleep
+    sleep_score = sleep.get("score", {}).get("sleep_performance_percentage")
+
+    if sleep_score:
+        if sleep_score < 70:
+            advice.append("睡眠不足，今晚建议提前30-60分钟睡觉。")
+        else:
+            advice.append("睡眠表现不错，继续保持规律作息。")
+
+
+    # Strain
+    strain = cycle.get("score", {}).get("strain")
+
+    if strain:
+        if strain > 16:
+            advice.append("昨日负荷较高，今天注意恢复。")
+        elif strain < 8:
+            advice.append("昨日活动较少，可以适当增加运动。")
+        else:
+            advice.append("昨日活动量适中。")
+
+
+    return status, advice
+
 
 
 def main():
 
     today = datetime.now().strftime("%Y-%m-%d")
 
-    recovery = get_whoop(
+
+    recovery_data = get_whoop(
         "https://api.prod.whoop.com/developer/v2/recovery"
     )
 
-    sleep = get_whoop(
+    sleep_data = get_whoop(
         "https://api.prod.whoop.com/developer/v2/activity/sleep"
     )
 
-    cycle = get_whoop(
+    cycle_data = get_whoop(
         "https://api.prod.whoop.com/developer/v2/cycle"
     )
 
 
-    report = f"""
-# WHOOP 今日健康报告
+    recovery = get_score(recovery_data)
+    sleep = get_score(sleep_data)
+    cycle = get_score(cycle_data)
 
-日期：{today}
+
+    status, advice = analyze(
+        recovery,
+        sleep,
+        cycle
+    )
+
+
+    report = f"""
+# 🟢 WHOOP 健康教练日报
+
+日期：
+{today}
 
 ---
 
-## 恢复 Recovery
+## 今日状态
 
+{status}
+
+---
+
+## 身体数据
+
+### Recovery
 {recovery}
 
----
-
-## 睡眠 Sleep
-
+### Sleep
 {sleep}
 
----
-
-## 活动负荷 Strain
-
+### Strain
 {cycle}
 
 ---
 
 ## 今日建议
 
-根据 WHOOP 数据：
-
-- 如果恢复较高：
-  可以进行正常训练。
-
-- 如果恢复偏低：
-  建议降低训练强度，加强睡眠和恢复。
-
-- 保持规律睡眠和补充水分。
-
----
-自动生成时间：
-{datetime.now()}
 """
 
+    for item in advice:
+        report += f"- {item}\n"
 
-    with open("WHOOP_Report.md", "w", encoding="utf-8") as f:
+
+    report += """
+
+---
+
+## 健康习惯建议
+
+✅ 保持充足饮水  
+✅ 早餐补充蛋白质  
+✅ 下午减少咖啡因  
+✅ 保持固定睡眠时间
+
+---
+
+自动生成：
+""" + str(datetime.now())
+
+
+    with open(
+        "WHOOP_Report.md",
+        "w",
+        encoding="utf-8"
+    ) as f:
         f.write(report)
 
 
     print(report)
+
 
 
 if __name__ == "__main__":
