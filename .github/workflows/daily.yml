@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          pip install requests openai
 
       - name: Run WHOOP Coach
         env:
