@@ -1,1 +1,24 @@
-name: WHOOP Daily Report<br/><br/>on:<br/>  schedule:<br/>    # 工作日 08:30（新加坡/北京时间）<br/>    # GitHub Actions 使用 UTC，因此 08:30 UTC+8 = 00:30 UTC<br/>    - cron: '30 0 * * 1-5'<br/><br/>  workflow_dispatch:<br/><br/>jobs:<br/>  report:<br/>    runs-on: ubuntu-latest<br/><br/>    steps:<br/>      - name: Checkout<br/>        uses: actions/checkout@v4<br/><br/>      - name: Test workflow<br/>        run: |<br/>          echo "WHOOP Daily Report"<br/>          date
+name: WHOOP Health Report
+on:
+   schedule:
+     - cron: '30 0 * * 1-5'
+     - cron: '30 2 * * 6,0'
+   workflow_dispatch:
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install packages
+        run: |
+          pip install requests
+          
+      - name: Run report
+        run: python report.py
