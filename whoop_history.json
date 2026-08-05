@@ -33,5 +33,12 @@
     "sleep": 0,
     "strain": 0,
     "hrv": 0
+  },
+  {
+    "date": "2026-08-05",
+    "recovery": 0,
+    "sleep": 0,
+    "strain": 0,
+    "hrv": 0
   }
 ]
