@@ -1,12 +1,5 @@
 [
   {
-    "date": "2026-08-04",
-    "recovery": 0,
-    "sleep": 0,
-    "strain": 0,
-    "hrv": 0
-  },
-  {
     "date": "2026-08-05",
     "recovery": 0,
     "sleep": 0,
@@ -43,6 +36,13 @@
   },
   {
     "date": "2026-08-10",
+    "recovery": 0,
+    "sleep": 0,
+    "strain": 0,
+    "hrv": 0
+  },
+  {
+    "date": "2026-08-11",
     "recovery": 0,
     "sleep": 0,
     "strain": 0,
